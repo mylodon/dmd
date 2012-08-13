@@ -304,14 +304,14 @@ Dsymbols *Parser::parseDeclDefs(int once)
                 {   condition = parseStaticIfCondition();
                     Loc lookingForElseSave = lookingForElse;
                     lookingForElse = loc;
-                    a = parseBlock();
+                    a = parseBlock(1);
                     lookingForElse = lookingForElseSave;
                     aelse = NULL;
                     if (token.value == TOKelse)
                     {
                         Loc elseloc = this->loc;
                         nextToken();
-                        aelse = parseBlock();
+                        aelse = parseBlock(2);
                         checkDanglingElse(elseloc);
                     }
                     s = new StaticIfDeclaration(condition, a, aelse);
@@ -607,7 +607,7 @@ Dsymbols *Parser::parseDeclDefs(int once)
                 {
                     Loc lookingForElseSave = lookingForElse;
                     lookingForElse = loc;
-                    a = parseBlock();
+                    a = parseBlock(1);
                     lookingForElse = lookingForElseSave;
                 }
                 aelse = NULL;
@@ -615,7 +615,7 @@ Dsymbols *Parser::parseDeclDefs(int once)
                 {
                     Loc elseloc = this->loc;
                     nextToken();
-                    aelse = parseBlock();
+                    aelse = parseBlock(2);
                     checkDanglingElse(elseloc);
                 }
                 s = new ConditionalDeclaration(condition, a, aelse);
@@ -728,20 +728,25 @@ StorageClass Parser::parsePostfix()
  * Parse declarations after an align, protection, or extern decl.
  */
 
-Dsymbols *Parser::parseBlock()
+Dsymbols *Parser::parseBlock(int cond)
 {
     Dsymbols *a = NULL;
+
+    const char* cond_z = 
+        cond == 0 ? "attribute" :
+        (cond == 1 ? "condition" :
+         (cond == 2 ? "else" : "??")); 
 
     //printf("parseBlock()\n");
     switch (token.value)
     {
         case TOKsemicolon:
-            error("declaration expected following attribute, not ';'");
+            error("declaration expected following %s, not ';'", cond_z);
             nextToken();
             break;
 
         case TOKeof:
-            error("declaration expected following attribute, not EOF");
+            error("declaration expected following %s, not EOF", cond_z);
             break;
 
         case TOKlcurly:
@@ -769,6 +774,11 @@ Dsymbols *Parser::parseBlock()
             a = parseDeclDefs(0);       // grab declarations up to closing curly bracket
 #endif
             break;
+ 	case TOKrcurly:
+ 	    if(cond != 0){
+ 		error("declaration expected following %s, not '}'", cond_z);
+ 		break;
+ 	    }
 
         default:
             a = parseDeclDefs(1);
